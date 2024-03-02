@@ -1,0 +1,49 @@
+name: profile
+
+on:
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: ['18.19.1', '20.0.0']
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: install node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: checkout asciidoc-link-check
+        run: |
+          git clone https://github.com/marcindulak/asciidoc-link-check
+          cd asciidoc-link-check
+          git checkout fix-program-is-not-a-function
+
+      - name: install asciidoc-link-check
+        run: |
+          cd asciidoc-link-check
+          npm ci
+
+      - name: profile
+        run: |
+          node --version
+          time node --prof ./asciidoc-link-check/asciidoc-link-check test.adoc
+          mv *.log ${{ matrix.node-version }}.log
+          node --prof-process ${{ matrix.node-version }}.log > ${{ matrix.node-version }}.log.prof
+          cat ${{ matrix.node-version }}.log.prof
+
+      - name: upload profile
+        uses: actions/upload-artifact@v3
+        with:
+          name: upload profile ${{ matrix.node-version }}
+          path: ${{ matrix.node-version }}.log*
